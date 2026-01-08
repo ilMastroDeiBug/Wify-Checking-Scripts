@@ -40,7 +40,7 @@ We need to create the "brain" that will send us messages.
 ---
 
 ## 3. Python Environment Setup
-The bot is written in Python. We need to prepare the host PC.
+The bot is written in Python. We need to prepare the host PC.The script is in italian, so check translator for foreigner words.
 
 1.  Download and install [Python](https://www.python.org/downloads/). (Make sure to check **"Add Python to PATH"** during installation).
 2.  Open your terminal (PowerShell or CMD) and install the necessary libraries:
@@ -55,6 +55,7 @@ The bot is written in Python. We need to prepare the host PC.
 ## 4. The Code (Script)
 Create a folder on your desktop. Inside, create a file named `bot.py` and paste the script code.
 *(Make sure to use the version with the `BERSAGLI` dictionary).*
+Where needed, copy and paste your discord channel id (ID_CANALE).
 
 ---
 
