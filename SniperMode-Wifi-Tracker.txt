@@ -1,0 +1,67 @@
+import discord
+from discord.ext import tasks, commands
+from scapy.all import ARP, Ether, srp
+import asyncio
+
+# --- CONFIGURAZIONE UTENTE ---
+TOKEN = 'INSERISCI_QUI_IL_TUO_TOKEN'
+ID_CANALE_DISCORD = INSERISCI SENZA VIROLETTE IL TUO ID 
+NETWORK_RANGE = "INSERISCI QUI IL TUO IP ROUTER RANGE" 
+
+# --- LISTA BERSAGLI ---
+# Qui inserite gli indirizzi IP che volete trackare e il nome associato
+# Esempio: '192.168.1.50': 'Il mio iPhone'
+BERSAGLI = {
+    '192.168.1.XX': 'Nome Bersaglio 1',
+    '192.168.1.YY': 'Nome Bersaglio 2'
+}
+
+INTENTS = discord.Intents.default()
+INTENTS.message_content = True
+bot = commands.Bot(command_prefix='!', intents=INTENTS)
+
+ultima_scansione = set()
+
+def scan_network():
+    arp = ARP(pdst=NETWORK_RANGE)
+    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+    packet = ether/arp
+    try:
+        result = srp(packet, timeout=2, verbose=False)[0]
+        return {received.psrc for sent, received in result}
+    except:
+        return set()
+
+@bot.event
+async def on_ready():
+    global ultima_scansione
+    print(f'🎯 SISTEMA TARGETING ATTIVO: {bot.user.name}')
+    print(f'   Bersagli nel mirino: {list(BERSAGLI.values())}')
+    
+    ultima_scansione = scan_network()
+    network_monitor.start()
+
+@tasks.loop(seconds=10)
+async def network_monitor():
+    global ultima_scansione
+    channel = bot.get_channel(ID_CANALE_DISCORD)
+    
+    if channel:
+        dispositivi_ora = scan_network()
+        nuovi_ingressi = dispositivi_ora - ultima_scansione
+        
+        if nuovi_ingressi:
+            for ip in nuovi_ingressi:
+                # Se l'IP è nella lista dei bersagli, scatena l'inferno
+                if ip in BERSAGLI:
+                    nome = BERSAGLI[ip]
+                    msg = f"🚨 @everyone **ALLARME:** È entrato **{nome}** (IP: `{ip}`)"
+                    # tts=True fa leggere il messaggio al sintetizzatore vocale
+                    await channel.send(msg, tts=True)
+                    print(f"!!! Rilevato bersaglio: {nome} !!!")
+                else:
+                    print(f"Ospite ignoto rilevato: {ip} (Nessuna azione)")
+
+        ultima_scansione = dispositivi_ora
+
+bot.run(TOKEN)

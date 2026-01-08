@@ -1,0 +1,68 @@
+import discord
+from discord.ext import tasks, commands
+from scapy.all import ARP, Ether, srp
+import asyncio
+
+# --- CONFIGURAZIONE UTENTE ---
+# Inserisci qui il tuo Token del Bot Discord
+TOKEN = 'INSERISCI_QUI_IL_TUO_TOKEN'
+# Inserisci l'ID del canale dove il bot deve inviare le notifiche (deve essere un numero intero)
+ID_CANALE_DISCORD = 000000000000000000 
+# Range della rete locale (es. 192.168.1.0/24 per la maggior parte dei router domestici)
+NETWORK_RANGE = "192.168.1.0/24" 
+
+INTENTS = discord.Intents.default()
+INTENTS.message_content = True
+bot = commands.Bot(command_prefix='!', intents=INTENTS)
+
+ultima_scansione = set()
+
+def scan_network():
+    """Esegue una scansione ARP della rete locale."""
+    arp = ARP(pdst=NETWORK_RANGE)
+    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+    packet = ether/arp
+    try:
+        # Invia pacchetti e attende risposta (timeout 2s)
+        result = srp(packet, timeout=2, verbose=False)[0]
+        return {received.psrc for sent, received in result}
+    except:
+        return set()
+
+@bot.event
+async def on_ready():
+    global ultima_scansione
+    print(f'✅ RADAR ATTIVO: {bot.user.name}')
+    print("Mappatura iniziale della rete in corso...")
+    
+    # Esegue la prima scansione per ignorare i dispositivi già connessi
+    ultima_scansione = scan_network()
+    print(f"Dispositivi iniziali ignorati: {len(ultima_scansione)}")
+    
+    network_monitor.start()
+
+@tasks.loop(seconds=30) 
+async def network_monitor():
+    global ultima_scansione
+    channel = bot.get_channel(ID_CANALE_DISCORD)
+    
+    if channel:
+        # 1. Scansione attuale
+        dispositivi_ora = scan_network()
+        
+        # 2. Calcolo dei nuovi ingressi (Differenza tra ora e prima)
+        nuovi_ingressi = dispositivi_ora - ultima_scansione
+        
+        # 3. Notifica se ci sono nuovi dispositivi
+        if nuovi_ingressi:
+            for ip in nuovi_ingressi:
+                # Esclude il router (solitamente finisce con .1 o .254)
+                if ip != "192.168.1.254" and ip != "192.168.1.1":
+                    msg = f"⚠️ **NUOVO DISPOSITIVO RILEVATO!** IP: `{ip}`"
+                    await channel.send(msg)
+                    print(f"Alert inviato per: {ip}")
+
+        # 4. Aggiorna la memoria per il prossimo ciclo
+        ultima_scansione = dispositivi_ora
+
+bot.run(TOKEN)
